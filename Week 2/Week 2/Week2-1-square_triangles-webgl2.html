@@ -1,0 +1,114 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <title>Square using gl.TRIANGLES</title>
+    <style>
+        #overlay {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            background-color: rgb(255, 106, 0);
+            color: white;
+            font-family: monospace;
+            padding: 1em;
+            border-radius: 1em;
+            border: 2px solid #ff6a00;
+            text-shadow: 0px 0px 1px white, 0px 0px 1px white, 0px 0px 1px white, 0px 0px 1px white;
+        }
+    </style>
+    <!-- /* offset-x | offset-y | blur-radius | color */
+        text-shadow: 1px 1px 2px black; -->
+
+    <script src="Common/js/gl.js"></script>
+    <script src="Common/js/shaders.js"></script>
+    <script>
+        var gl;
+        window.addEventListener("load", function () {
+            startTime();
+            gl = GLInstance("glcanvas").fSetSize(500, 500).fClear();
+            shaderProg = ShaderUtil.domShaderProgram(gl, "vertex_shader", "fragment_shader", true);
+
+            gl.useProgram(shaderProg);
+            var aPositionLoc = gl.getAttribLocation(shaderProg, "a_position"),
+                uPointSizeLoc = gl.getUniformLocation(shaderProg, "uPointSize");
+            gl.useProgram(null);
+
+            //............................................
+            //Set Up Data Buffers
+            var vertices = [
+                -0.5, -0.5,
+                -0.5, 0.5,
+                0.5, 0.5,
+                -0.5, -0.5,
+                0.5, 0.5,
+                0.5, -0.5
+            ];
+            var aryVerts = new Float32Array(vertices),
+                bufVerts = gl.createBuffer();
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, bufVerts);
+            gl.bufferData(gl.ARRAY_BUFFER, aryVerts, gl.STATIC_DRAW);
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+            //............................................
+            //Set Up For Drawing
+            gl.useProgram(shaderProg);				//Activate the Shader
+            gl.uniform1f(uPointSizeLoc, 50.0);		//Store data to the shader's uniform variable uPointSize
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, bufVerts);					//Tell gl which buffer we want to use at the moment
+            gl.enableVertexAttribArray(aPositionLoc);					//Enable the position attribute in the shader
+            gl.vertexAttribPointer(aPositionLoc, 2, gl.FLOAT, false, 0, 0);	//Set which buffer the attribute will pull its data from
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);						//Done setting up the buffer
+
+            this.gl.drawArrays(gl.TRIANGLES, 0, 6); // v0, v1, v2, v0, v2, v3					//Draw the triangle
+        });
+
+        function startTime() {
+            var today = new Date();
+            var h = today.getHours();
+            var m = today.getMinutes();
+            var s = today.getSeconds();
+            m = checkTime(m);
+            s = checkTime(s);
+            document.getElementById('time').innerHTML =
+                h + ":" + m + ":" + s;
+            var t = setTimeout(startTime, 500);
+        }
+        function checkTime(i) {
+            if (i < 10) { i = "0" + i };  // add zero in front of numbers < 10
+            return i;
+        }
+    </script>
+</head>
+<body>
+    <canvas id="glcanvas">
+        Oops ... your browser doesn't support the HTML5 canvas element
+    </canvas>
+    <div id="overlay">
+        <div>Time: <span id="time"></span></div>
+    </div>
+    <script id="vertex_shader" type="x-shader/x-vertex">
+        #version 300 es
+        in vec3 a_position;
+
+        uniform float uPointSize;
+
+        void main(void){
+        gl_PointSize = uPointSize;
+        gl_Position = vec4(a_position, 1.0);
+        }
+    </script>
+    <script id="fragment_shader" type="x-shader/x-fragment">
+        #version 300 es
+        precision mediump float;
+
+        out vec4 finalColor;
+
+        void main(void) {
+        finalColor = vec4(1.0, 0.0, 0.0, 1.0);
+        }
+    </script>
+
+</body>
+</html>

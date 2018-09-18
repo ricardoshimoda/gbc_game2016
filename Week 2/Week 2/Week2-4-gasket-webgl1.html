@@ -1,0 +1,146 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>2D Sierpinski Gasket</title>
+    <style>
+        html, body {
+            margin: 0px;
+            padding: 0px;
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            background-color: #404040;
+        }
+
+        canvas {
+            border: 1px solid black;
+        }
+
+        div {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+    <script src="Common/js/gl1.js"></script>
+    <script src="Common/js/shaders1.js"></script>
+    <script src="Common/js/gl-matrix.js"></script>
+    <script>
+        var gl, uPointSizeLoc;
+        var NumPoints = 5000;
+        var p, points = [];
+
+        // First, initialize the corners of our gasket with three points.
+        var vertices = [];
+        var aryVerts;
+
+        window.addEventListener("load", function () {
+
+            gl = GLInstance("glcanvas").fSetSize(500, 500).fClear();
+            shaderProg = ShaderUtil.domShaderProgram(gl, "vertex_shader", "fragment_shader", true);
+
+            gl.useProgram(shaderProg);
+            var aPositionLoc = gl.getAttribLocation(shaderProg, "a_position"),
+                uPointSizeLoc = gl.getUniformLocation(shaderProg, "uPointSize");
+            gl.useProgram(null);
+
+            //............................................
+            //Set Up Data Buffers
+
+            aryVerts = setupVertices();
+            bufVerts = gl.fCreateArrayBuffer(aryVerts);
+            //refactor the following
+            //bufVerts = gl.createBuffer();
+            //gl.bindBuffer(gl.ARRAY_BUFFER,bufVerts);
+            //gl.bufferData(gl.ARRAY_BUFFER, aryVerts, gl.STATIC_DRAW);
+            //gl.bindBuffer(gl.ARRAY_BUFFER,null);
+
+            //............................................
+            //Set Up For Drawing
+            gl.useProgram(shaderProg);				//Activate the Shader
+            gl.uniform1f(uPointSizeLoc, 1.0);		//Store data to the shader's uniform variable uPointSize
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, bufVerts);					//Tell gl which buffer we want to use at the moment
+            gl.enableVertexAttribArray(aPositionLoc);					//Enable the position attribute in the shader
+            gl.vertexAttribPointer(aPositionLoc, 3, gl.FLOAT, false, 0, 0);	//Set which buffer the attribute will pull its data from
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);						//Done setting up the buffer
+
+            this.gl.drawArrays(gl.POINTS, 0, points.length);						//Draw the triangle
+        });
+
+        function setupVertices() {
+            // Specify a starting point p for our iterations
+            // p must lie inside any set of three vertices
+            a = new Float32Array([-1, -1, 0])
+            b = new Float32Array([0, 1, 0,]);
+            c = new Float32Array([1, -1, 0]);
+            u = vec3.create();
+            v = vec3.create();
+            p = vec3.create();
+            vertices[0] = a;
+            vertices[1] = b;
+            vertices[2] = c;
+
+            vec3.add(u, a, b);
+            vec3.add(v, a, c);
+            vec3.add(p, u, v);
+            vec3.scale(p, p, 0.5);
+
+            // And, add our initial point into our array of points
+
+            points = [p];
+
+            // Compute new points
+            // Each new point is located midway between
+            // last point and a randomly chosen vertex
+
+            for (var i = 0; points.length < NumPoints; ++i) {
+                p = vec3.create();
+                var j = Math.floor(Math.random() * 3);
+                vec3.add(p, points[i], vertices[j]);
+                vec3.scale(p, p, 0.5);
+                points.push(p);
+            }
+
+
+            var myVerts = new Float32Array(points.length * 3);
+
+            var idx = 0;
+            for (var i = 0; i < points.length; ++i) {
+                for (var j = 0; j < points[i].length; ++j) {
+                    myVerts[idx++] = points[i][j];
+                }
+            }
+
+            return myVerts;
+
+        }
+    </script>
+</head>
+<body>
+    <div>
+        <canvas id="glcanvas"></canvas>
+    </div>
+    <script id="vertex_shader" type="x-shader/x-vertex">
+        attribute vec3 a_position;
+
+        uniform float uPointSize;
+
+        void main(void){
+        gl_PointSize = uPointSize;
+        gl_Position = vec4(a_position, 1.0);
+        }
+    </script>
+    <script id="fragment_shader" type="x-shader/x-fragment">
+        precision mediump float;
+
+        void main(void) {
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        }
+    </script>
+</body>
+</html>

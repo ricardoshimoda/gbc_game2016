@@ -1,0 +1,54 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <title>Square using gl.TRIANGLES</title>
+    <style>
+        #overlay {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            background-color: rgb(255, 106, 0);
+            color: white;
+            font-family: monospace;
+            padding: 1em;
+            border-radius: 1em;
+            border: 2px solid #ff6a00;
+            text-shadow: 0px 0px 2px white, 0px 0px 2px white, 0px 0px 2px white, 0px 0px 2px white;
+        }
+    </style>
+    <!-- /* offset-x | offset-y | blur-radius | color */
+        text-shadow: 1px 1px 2px black; -->
+    <script id="vertex-shader" type="x-shader/x-vertex">
+        attribute vec4 vPosition;
+
+        void
+        main()
+        {
+        gl_Position = vPosition;
+        }
+    </script>
+    <script id="fragment-shader" type="x-shader/x-fragment">
+        precision mediump float;
+
+        void
+        main()
+        {
+        gl_FragColor = vec4( 1.0, 1.0, 1.0, 1.0 );
+        }
+    </script>
+    <script type="text/javascript" src="Common/webgl-utils.js"></script>
+    <script type="text/javascript" src="Common/initShaders.js"></script>
+    <script type="text/javascript" src="Common/MV.js"></script>
+    <script type="text/javascript" src="Common/webgl-debug.js"></script>
+    <script type="text/javascript" src="week2-2-square_triangles.js"></script>
+</head>
+<body>
+    <canvas id="gl-canvas" width="512" height="512">
+        Oops ... your browser doesn't support the HTML5 canvas element
+    </canvas>
+    <div id="overlay">
+        <div>Time: <span id="time"></span></div>
+    </div>
+</body>
+</html>
