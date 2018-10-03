@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Assignment2-CubeTableAndCarpet</title>
+    <style>
+        html, body {
+            margin: 0px;
+            padding: 0px;
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            background-color: #404040;
+        }
+
+        canvas {
+            border: 1px solid black;
+        }
+
+        div {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+
+    <script src="Common/js/gl.js"></script>
+    <script src="Common/js/shaders.js"></script>
+    <script src="Common/js/gl-matrix.js"></script>
+
+    <script>
+        var gl;
+        var vertexArray;
+        var vertexBuffer;
+        var colorBuffer;
+
+        var numSolids = 7;
+
+        /*
+         * Sizes of main solids
+         * 
+         */
+         var cubeSide = 0.17;
+         var cubeX = 0.08;
+         var cubeY = 0.615;
+         var cubeZ = 0.08;
+
+         /* the rotating cube */
+         var theta = 0;
+
+         var tableSide = 0.55;
+         var tableY= 0.50
+         var tableZ = 0.05
+
+         var carpetLongSide = 1.2;
+         var carpetSmallSide = 1.60;
+         var carpetHeight = 0.01;
+         var carpetY = 0.0;
+         var carpetZ = 0.0;
+
+         /*
+          * Legs
+          */
+        var legSide = 0.05;
+        var tableHeight = 0.05;
+        var legHeight = 0.35;
+        var legY = 0.35;
+        var legX = 0.25;
+        var legZ = 0.30;
+         
+        /*
+         * One shader for each color we need to have in the picture
+         */
+        var cubeShaderProg;
+        var shaderProg;
+
+        var vColor;
+        var points = [];
+        var colors = [];
+        var vertices = [];
+        var vertexColors = [];
+        var verIdx = 0;
+        var verCol = 0;
+
+
+        window.addEventListener("load", function () {
+            //............................................
+            //Get our extended GL Context Object
+            gl = GLInstance("myGLCanvas").fSetSize(500, 500).fClear();
+            /* Ensure we are only showing what can be really seen */
+            gl.enable(gl.DEPTH_TEST);
+            /* 
+             * Setup all the shaders - including translation and rotation 
+             * information
+             */
+            setupShaders()
+            /*
+             * Setup all the buffers - vertices and colours 
+             * combined
+             */
+            setupBuffers()
+            /*
+             * Draw all the solids
+             */
+            draw();
+        });
+
+        function setupShaders() {
+            shaderProg = ShaderUtil.domShaderProgram(gl, "vertex_shader", "fragment_shader", true);
+            gl.useProgram(shaderProg);
+            shaderProg.aPositionLoc = gl.getAttribLocation(shaderProg, "vPositionAttr"),
+            shaderProg.uPointSizeLoc = gl.getUniformLocation(shaderProg, "uPointSize");
+            gl.uniform1f(shaderProg.uPointSizeLoc, 1.0);
+            shaderProg.vColor = gl.getAttribLocation(shaderProg, "vColorAttr");
+
+            cubeShaderProg = ShaderUtil.domShaderProgram(gl, "cube_vertex_shader", "fragment_shader", true);
+            cubeShaderProg.uAngle = gl.getUniformLocation(cubeShaderProg, "uAngle");
+            cubeShaderProg.aPositionLoc = gl.getAttribLocation(cubeShaderProg, "vPositionAttr"),
+            cubeShaderProg.uPointSizeLoc = gl.getUniformLocation(cubeShaderProg, "uPointSize");
+            gl.uniform1f(cubeShaderProg.uPointSizeLoc, 1.0);
+            cubeShaderProg.vColor = gl.getAttribLocation(cubeShaderProg, "vColorAttr");
+
+            gl.useProgram(null);
+        }
+
+        /* 
+         * Sets up one face at a time for a rectangular prism
+         */
+        function setupVertices() {
+            //var index = 0;
+            for(index = 0; index < numSolids; index++){
+                rIdx = 8 * index;
+                quad(rIdx + 1, rIdx + 0, rIdx + 3, rIdx + 2);
+                quad(rIdx + 2, rIdx + 3, rIdx + 7, rIdx + 6);
+                quad(rIdx + 3, rIdx + 0, rIdx + 4, rIdx + 7);
+                quad(rIdx + 6, rIdx + 5, rIdx + 1, rIdx + 2);
+                quad(rIdx + 4, rIdx + 5, rIdx + 6, rIdx + 7);
+                quad(rIdx + 5, rIdx + 4, rIdx + 0, rIdx + 1);
+            }
+        }
+
+        function quad(a, b, c, d) {
+            var indices = [a, b, c, a, c, d];
+            for (var i = 0; i < indices.length; ++i) {
+                points.push(...vertices[indices[i]]);
+                colors.push(...vertexColors[a]);
+              }
+        }
+
+
+        function drawCarpet(){
+            vertices[verIdx++] = vec3.clone([-carpetLongSide/2.0, -carpetHeight/2.0 + carpetY,  carpetSmallSide/2.0 + carpetZ]);
+            vertices[verIdx++] = vec3.clone([-carpetLongSide/2.0,  carpetHeight/2.0 + carpetY,  carpetSmallSide/2.0 + carpetZ]);
+            vertices[verIdx++] = vec3.clone([ carpetLongSide/2.0,  carpetHeight/2.0 + carpetY,  carpetSmallSide/2.0 + carpetZ]);
+            vertices[verIdx++] = vec3.clone([ carpetLongSide/2.0, -carpetHeight/2.0 + carpetY,  carpetSmallSide/2.0 + carpetZ]);
+            vertices[verIdx++] = vec3.clone([-carpetLongSide/2.0, -carpetHeight/2.0 + carpetY, -carpetSmallSide/2.0 + carpetZ]);
+            vertices[verIdx++] = vec3.clone([-carpetLongSide/2.0,  carpetHeight/2.0 + carpetY, -carpetSmallSide/2.0 + carpetZ]);
+            vertices[verIdx++] = vec3.clone([ carpetLongSide/2.0,  carpetHeight/2.0 + carpetY, -carpetSmallSide/2.0 + carpetZ]);
+            vertices[verIdx++] = vec3.clone([ carpetLongSide/2.0, -carpetHeight/2.0 + carpetY, -carpetSmallSide/2.0 + carpetZ]);
+            
+
+            /* Brown */
+            for(colIdx = 0; colIdx < 8; colIdx++){
+                vertexColors[verCol++] = vec3.clone([1.0, 0.0, 0.0]);
+            }
+        }
+
+        function drawLegs(){
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX, -legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX,  legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX,  legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX, -legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX, -legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX,  legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX,  legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX, -legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX, -legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX,  legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX,  legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX, -legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX, -legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX,  legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX,  legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX, -legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+            
+            for(colIdx = 0; colIdx < 8*4; colIdx++){
+                vertexColors[verCol++] = vec3.clone([184.0/255.0, 135.0/255.0, 10.0/255.0]);
+            }
+        }
+
+        function drawTableTop(){
+            vertices[verIdx++] = vec3.clone([-tableSide/2.0, -tableHeight/2.0 + tableY,  tableSide/2.0 + tableZ]);
+            vertices[verIdx++] = vec3.clone([-tableSide/2.0,  tableHeight/2.0 + tableY,  tableSide/2.0 + tableZ]);
+            vertices[verIdx++] = vec3.clone([ tableSide/2.0,  tableHeight/2.0 + tableY,  tableSide/2.0 + tableZ]);
+            vertices[verIdx++] = vec3.clone([ tableSide/2.0, -tableHeight/2.0 + tableY,  tableSide/2.0 + tableZ]);
+            vertices[verIdx++] = vec3.clone([-tableSide/2.0, -tableHeight/2.0 + tableY, -tableSide/2.0 + tableZ]);
+            vertices[verIdx++] = vec3.clone([-tableSide/2.0,  tableHeight/2.0 + tableY, -tableSide/2.0 + tableZ]);
+            vertices[verIdx++] = vec3.clone([ tableSide/2.0,  tableHeight/2.0 + tableY, -tableSide/2.0 + tableZ]);
+            vertices[verIdx++] = vec3.clone([ tableSide/2.0, -tableHeight/2.0 + tableY, -tableSide/2.0 + tableZ]);
+            for(colIdx = 0; colIdx < 8; colIdx++){
+                vertexColors[verCol++] = vec3.clone([184.0/255.0, 135.0/255.0, 10.0/255.0]);
+            }
+        }
+
+        function drawCube(){
+            vertices[verIdx++] = vec3.clone([-cubeSide/2.0 + cubeX, -cubeSide/2.0 + cubeY,  cubeSide/2.0 + cubeZ]);
+            vertices[verIdx++] = vec3.clone([-cubeSide/2.0 + cubeX,  cubeSide/2.0 + cubeY,  cubeSide/2.0 + cubeZ]);
+            vertices[verIdx++] = vec3.clone([ cubeSide/2.0 + cubeX,  cubeSide/2.0 + cubeY,  cubeSide/2.0 + cubeZ]);
+            vertices[verIdx++] = vec3.clone([ cubeSide/2.0 + cubeX, -cubeSide/2.0 + cubeY,  cubeSide/2.0 + cubeZ]);
+            vertices[verIdx++] = vec3.clone([-cubeSide/2.0 + cubeX, -cubeSide/2.0 + cubeY, -cubeSide/2.0 + cubeZ]);
+            vertices[verIdx++] = vec3.clone([-cubeSide/2.0 + cubeX,  cubeSide/2.0 + cubeY, -cubeSide/2.0 + cubeZ]);
+            vertices[verIdx++] = vec3.clone([ cubeSide/2.0 + cubeX,  cubeSide/2.0 + cubeY, -cubeSide/2.0 + cubeZ]);
+            vertices[verIdx++] = vec3.clone([ cubeSide/2.0 + cubeX, -cubeSide/2.0 + cubeY, -cubeSide/2.0 + cubeZ]);
+            for(colIdx = 0; colIdx < 8; colIdx++){
+                vertexColors[verCol++] = vec3.clone([0, 0, 1]);
+            }
+
+        }
+
+        function setupBuffers() {
+
+            vertexBuffer = gl.createBuffer();
+            drawCarpet();
+            drawLegs();
+            drawTableTop();
+            drawCube();
+
+            setupVertices();
+            vertexBuffer.itemSize = 3;
+            console.log('points = ', points.length);
+            vertexBuffer.numberOfItems = points.length / 3;
+            colorBuffer = gl.createBuffer();
+            gl.useProgram(shaderProg);
+
+            vertexArray = gl.createVertexArray();
+            gl.bindVertexArray(vertexArray);
+            gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(shaderProg.aPositionLoc);
+            gl.vertexAttribPointer(shaderProg.aPositionLoc, 3, gl.FLOAT, false, 0, 0);
+
+
+            gl.bindBuffer( gl.ARRAY_BUFFER, colorBuffer );
+            gl.bufferData( gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW );
+            gl.enableVertexAttribArray( shaderProg.vColor );
+            gl.vertexAttribPointer( shaderProg.vColor, 3, gl.FLOAT, false, 0, 0 );
+
+            gl.bindVertexArray(null);
+        }
+
+        function draw() {
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            gl.useProgram(shaderProg);
+            gl.bindVertexArray(vertexArray);
+            for(idxSolid = 0; idxSolid < numSolids-1; idxSolid++){
+                ridxS = 36*idxSolid;
+                gl.drawArrays(gl.TRIANGLES, ridxS, 36);
+            }
+
+            gl.useProgram(cubeShaderProg);
+            //console.log('theta', theta);
+            theta += 0.1;
+            gl.uniform1f(cubeShaderProg.uAngle, theta);
+
+            ridxS = 36*(numSolids-1);
+            gl.drawArrays(gl.TRIANGLES, ridxS, 36);
+
+            gl.bindVertexArray(null);
+            window.requestAnimationFrame(draw);
+        }
+    </script>
+</head>
+<body>
+    <div>
+        <canvas id="myGLCanvas"></canvas>
+    </div>
+
+    <script id="vertex_shader" type="x-shader/x-vertex">#version 300 es
+        in vec3 vPositionAttr;
+        in vec3 vColorAttr;
+        out vec4 vColor;
+        uniform float uPointSize;
+
+        void main(void){
+            vec3 theta = vec3(-25,-35,0);
+            vec3 angles = radians( theta );
+            vec3 c = cos( angles );
+            vec3 s = sin( angles );
+
+            // Remeber: thse matrices are column-major
+            mat4 rx = mat4( 
+                1.0,  0.0, 0.0, 0.0,
+                0.0,  c.x, s.x, 0.0,
+                0.0, -s.x, c.x, 0.0,
+                0.0,  0.0, 0.0, 1.0 );
+
+            mat4 ry = mat4( 
+                c.y, 0.0, -s.y, 0.0,
+                0.0, 1.0,  0.0, 0.0,
+                s.y, 0.0,  c.y, 0.0,
+                0.0, 0.0,  0.0, 1.0 );
+
+            mat4 rz = mat4( 
+                 c.z, s.z, 0.0, 0.0,
+                -s.z, c.z, 0.0, 0.0,
+                 0.0, 0.0, 1.0, 0.0,
+                 0.0, 0.0, 0.0, 1.0 );
+
+            gl_PointSize = uPointSize;
+
+            mat4 translationBefore = mat4(
+                1.0,0.0,0.0,0.0,
+                0.0,1.0,0.0,0.0,
+                0.0,0.0,1.0,0.0,
+                0.0,-0.30 ,0.30,1.0
+            );
+            mat4 translationAfter = mat4(
+                1.0,0.0,0.0,0.0,
+                0.0,1.0,0.0,0.0,
+                0.0,0.0,1.0,0.0,
+                0.20,0.05,-0.30,1.0
+            );
+        
+            gl_Position = translationAfter* rx * ry * translationBefore * vec4(vPositionAttr, 1.0);
+            vColor = vec4(vColorAttr, 1.0);
+        }
+    </script>
+    <script id="cube_vertex_shader" type="x-shader/x-vertex">#version 300 es
+        in vec3 vPositionAttr;
+        in vec3 vColorAttr;
+        out vec4 vColor;
+        uniform float uPointSize;
+        uniform float uAngle;
+
+        void main(void){
+            vec3 theta = vec3(-25,-35,0);
+            vec3 angles = radians( theta );
+            vec3 c = cos( angles );
+            vec3 s = sin( angles );
+
+            // Remeber: thse matrices are column-major
+            mat4 rx = mat4( 
+                1.0,  0.0, 0.0, 0.0,
+                0.0,  c.x, s.x, 0.0,
+                0.0, -s.x, c.x, 0.0,
+                0.0,  0.0, 0.0, 1.0 );
+
+            mat4 ry = mat4( 
+                c.y, 0.0, -s.y, 0.0,
+                0.0, 1.0,  0.0, 0.0,
+                s.y, 0.0,  c.y, 0.0,
+                0.0, 0.0,  0.0, 1.0 );
+
+            mat4 rz = mat4( 
+                 c.z, s.z, 0.0, 0.0,
+                -s.z, c.z, 0.0, 0.0,
+                 0.0, 0.0, 1.0, 0.0,
+                 0.0, 0.0, 0.0, 1.0 );
+
+            gl_PointSize = uPointSize;
+
+            mat4 translationBefore = mat4(
+                1.0,0.0,0.0,0.0,
+                0.0,1.0,0.0,0.0,
+                0.0,0.0,1.0,0.0,
+                0.0,-0.30 ,0.30,1.0
+            );
+            mat4 translationAfter = mat4(
+                1.0,0.0,0.0,0.0,
+                0.0,1.0,0.0,0.0,
+                0.0,0.0,1.0,0.0,
+                0.20,0.05,-0.30,1.0
+            );
+
+            gl_Position = translationAfter* rx * ry * translationBefore *  vec4(
+                (cos(uAngle)) * 0.1+ vPositionAttr.x,
+                vPositionAttr.y,
+                (sin(uAngle)) * 0.1+ vPositionAttr.z,
+                1.0);
+            vColor = vec4(vColorAttr, 1.0);
+        }
+    </script>
+    <script id="fragment_shader" type="x-shader/x-fragment">#version 300 es
+        precision mediump float;
+        in vec4 vColor;
+        out vec4 finalColor;
+
+        void main(void) {
+            finalColor = vColor;
+        }
+    </script>
+
+</body>
+</html>
