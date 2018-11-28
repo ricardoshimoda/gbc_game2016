@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Assignment4-PhongShadingPhongReflection</title>
+    <!-- Webpage libraries -->
+    <link rel="stylesheet" href="Common/css/bootstrap.css" />
+    <link rel="stylesheet" href="Common/css/bootstrap-colorpicker.css" />
+    <script src="Common/js/jquery-3.3.1.min.js" ></script>
+    <script src="Common/js/bootstrap.js" ></script>
+    <script src="Common/js/bootstrap-colorpicker.js" ></script>
+
+    <style>
+        html, body {
+            margin: 0px;
+            padding: 0px;
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            background-color: #404040;
+        }
+
+        canvas {
+            border: 1px solid black;
+        }
+
+        .main_div {
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
+            margin: auto;
+        }
+        .wordings{
+            color:white;
+            margin-left:20px; 
+            margin-right:10px;
+            font-size: 14px;
+        }
+    </style>
+
+    <!-- WebGL2 libraries -->
+    <script src="Common/js/gl.js"></script>
+    <script src="Common/js/shaders.js"></script>
+    <script src="Common/js/gl-matrix.js"></script>
+
+    <script>
+        var gl;
+        var vertexArray;
+        var vertexBuffer;
+        var colorBuffer;
+
+        var numSolids = 7;
+
+        /* Eye Coordinates */
+        var eyeX = -2.0;
+        var eyeY= 0.0;
+        var eyeZ = -1.7;
+        /* For the projection matrix */
+        var near = 0.3;
+        var far = 3.0;
+
+        /* for phong */
+        var lightPosition = [-0.39, -0.81, -0.89, 0.0];
+        var lightAmbient = [0.2, 0.2, 0.2, 1.0];
+        var lightDiffuse = [1.0, 1.0, 1.0, 1.0];
+        var lightSpecular = [1.0, 1.0, 1.0, 1.0];
+
+        var materialAmbient = [0.2, 0.2, 0.2, 1.0];
+        var materialDiffuse = [1.0, 0.8, 0.0, 1.0];
+        var materialSpecular = [1.0, 1.0, 1.0, 1.0];
+        var backgroundColor = [1.0, 1.0, 1.0, 1.0];
+        var materialShininess = 100.0;
+
+
+        /*
+         * Sizes of main solids
+         * 
+         */
+         var cubeSide = 0.17;
+         var cubeX = 0.08;
+         var cubeY = 0.455;
+         var cubeZ = 0.08;
+
+         /* the rotating cube */
+         var theta = 0;
+
+         var tableSide = 0.55;
+         var tableY= 0.35
+         var tableZ = 0.05
+
+         var carpetLongSide = 1.2;
+         var carpetSmallSide = 1.60;
+         var carpetHeight = 0.01;
+         var carpetY = 0.0;
+         var carpetZ = 0.0;
+
+         /*
+          * The rotating scene
+          */
+         var thetaAnim = [0,0,0];
+         var rotateAnim = [false,false,false];
+
+         var aspect = 1;
+         var fovy = 25;
+
+         /*
+          * Legs
+          */
+        var legSide = 0.05;
+        var tableHeight = 0.05;
+        var legHeight = 0.35;
+        var legY = 0.18;
+        var legX = 0.25;
+        var legZ = 0.30;
+         
+        /*
+         * One shader for each color we need to have in the picture
+         */
+        var cubeShaderProg;
+        var shaderProg;
+
+        var vColor;
+        var points = [];
+        var colors = [];
+        var vertices = [];
+        var vertexColors = [];
+        var normalsArray = [];
+        var verIdx = 0;
+        var verCol = 0;
+        var normIdx = 0;
+
+
+        window.addEventListener("load", function () {
+            /* setup for colorpickers */
+            $('#material_diffuse_cp').colorpicker({format: 'rgb'})
+                .on('changeColor', function(e) {
+                    var finalColor = e.color.toRGB();
+                    materialDiffuse = [ parseFloat(finalColor.r)/255.0,
+                                        parseFloat(finalColor.g)/255.0,
+                                        parseFloat(finalColor.b)/255.0,
+                                        finalColor.a];
+                    console.log(materialDiffuse);
+                });
+            $('#material_ambient_cp').colorpicker({format: 'rgb'})
+                .on('changeColor', function(e) {
+                    var finalColor = e.color.toRGB();
+                    materialAmbient = [ parseFloat(finalColor.r)/255.0,
+                                        parseFloat(finalColor.g)/255.0,
+                                        parseFloat(finalColor.b)/255.0,
+                                        finalColor.a];
+                });
+            $('#material_specular_cp').colorpicker({format: 'rgb'})
+                .on('changeColor', function(e) {
+                    var finalColor = e.color.toRGB();
+                    materialSpecular =[ parseFloat(finalColor.r)/255.0,
+                                        parseFloat(finalColor.g)/255.0,
+                                        parseFloat(finalColor.b)/255.0,
+                                        finalColor.a];
+                });
+            $('#background_color_cp').colorpicker({format: 'rgb'})
+                .on('changeColor', function(e) {
+                    var finalColor = e.color.toRGB();
+                    backgroundColor = [ parseFloat(finalColor.r)/255.0,
+                                        parseFloat(finalColor.g)/255.0,
+                                        parseFloat(finalColor.b)/255.0,
+                                        finalColor.a];
+                    });
+
+            //............................................
+            //Get our extended GL Context Object
+            gl = GLInstance("myGLCanvas").fSetSize(500, 500).fClear();
+            /* Ensure we are only showing what can be really seen */
+            gl.enable(gl.DEPTH_TEST);
+            /* 
+             * Setup all the shaders - including translation and rotation 
+             * information
+             */
+            setupShaders();
+            /*
+             * Setup all the lightsn for both shaders
+             */
+            setupLights();
+            /*
+             * Setup all the buffers - vertices and colours 
+             * combined
+             */
+            setupBuffers();
+            /*
+             * Draw all the solids
+             */
+            draw();
+        });
+
+        function setupLights() {
+            gl.useProgram(shaderProg);
+            gl.uniform4fv(shaderProg.lightDiffuse, lightDiffuse);
+            gl.uniform4fv(shaderProg.materialDiffuse, materialDiffuse);
+            gl.uniform4fv(shaderProg.lightAmbient, lightAmbient);
+            gl.uniform4fv(shaderProg.materialAmbient, materialAmbient);
+            gl.uniform4fv(shaderProg.lightSpecular, lightSpecular);
+            gl.uniform4fv(shaderProg.materialSpecular, materialSpecular);
+            gl.uniform4fv(shaderProg.lightPosition, lightPosition);
+            gl.uniform1f(shaderProg.shininess, materialShininess);
+
+            gl.useProgram(cubeShaderProg);
+            gl.uniform4fv(cubeShaderProg.lightDiffuse, lightDiffuse);
+            gl.uniform4fv(cubeShaderProg.materialDiffuse, materialDiffuse);
+            gl.uniform4fv(cubeShaderProg.lightAmbient, lightAmbient);
+            gl.uniform4fv(cubeShaderProg.materialAmbient, materialAmbient);
+            gl.uniform4fv(cubeShaderProg.lightSpecular, lightSpecular);
+            gl.uniform4fv(cubeShaderProg.materialSpecular, materialSpecular);
+            gl.uniform4fv(cubeShaderProg.lightPosition, lightPosition);
+            gl.uniform1f(cubeShaderProg.shininess, materialShininess);
+        }
+
+        function setupShaders() {
+            shaderProg = ShaderUtil.domShaderProgram(gl, "vertex_shader", "fragment_shader", true);
+            gl.useProgram(shaderProg);
+            shaderProg.aPositionLoc = gl.getAttribLocation(shaderProg, "vPositionAttr"),
+            shaderProg.uPointSizeLoc = gl.getUniformLocation(shaderProg, "uPointSize");
+
+            /*
+             * Rotation Animation Setup
+             */
+            shaderProg.thetaAnim = gl.getUniformLocation(shaderProg, "thetaAnim");
+
+            /*
+             * Camera Setup
+             */
+            shaderProg.modelViewMatrixLoc = gl.getUniformLocation(shaderProg, "modelViewMatrix");
+            shaderProg.projectionMatrixLoc = gl.getUniformLocation(shaderProg, "projectionMatrix");
+
+            /*
+             * pre-setting up the point size (does not change on each draw)
+             */
+            gl.uniform1f(shaderProg.uPointSizeLoc, 1.0);
+            shaderProg.vColor = gl.getAttribLocation(shaderProg, "vColorAttr");
+
+            /*
+             * Setup Phong Shading and Reflection members
+             */
+            shaderProg.normalMatrixLoc = gl.getUniformLocation(shaderProg, "normalMatrix");
+            shaderProg.vNormal = gl.getAttribLocation(shaderProg, "vNormalAttr");
+            shaderProg.lightPosition = gl.getUniformLocation(shaderProg, "lightPosition");
+            shaderProg.materialDiffuse = gl.getUniformLocation(shaderProg, "materialDiffuse");
+            shaderProg.lightDiffuse = gl.getUniformLocation(shaderProg, "lightDiffuse");
+            shaderProg.materialAmbient = gl.getUniformLocation(shaderProg, "materialAmbient");
+            shaderProg.lightAmbient = gl.getUniformLocation(shaderProg, "lightAmbient");
+            shaderProg.materialSpecular = gl.getUniformLocation(shaderProg, "materialSpecular");
+            shaderProg.lightSpecular = gl.getUniformLocation(shaderProg, "lightSpecular");
+            shaderProg.shininess = gl.getUniformLocation(shaderProg, "shininess");
+
+
+            cubeShaderProg = ShaderUtil.domShaderProgram(gl, "cube_vertex_shader", "fragment_shader", true);
+            gl.useProgram(cubeShaderProg);
+
+            cubeShaderProg.uAngle = gl.getUniformLocation(cubeShaderProg, "uAngle");
+
+            /*
+             * Rotation Animation Setup
+             */
+             cubeShaderProg.thetaAnim = gl.getUniformLocation(cubeShaderProg, "thetaAnim");
+
+            /*
+             * Camera Setup
+             */
+            cubeShaderProg.modelViewMatrixLoc = gl.getUniformLocation(cubeShaderProg, "modelViewMatrix");
+            cubeShaderProg.projectionMatrixLoc = gl.getUniformLocation(cubeShaderProg, "projectionMatrix");
+
+            cubeShaderProg.aPositionLoc = gl.getAttribLocation(cubeShaderProg, "vPositionAttr"),
+            cubeShaderProg.uPointSizeLoc = gl.getUniformLocation(cubeShaderProg, "uPointSize");
+            
+            /*
+             * pre-setting up the point size (does not change on each draw)
+             */
+             gl.uniform1f(cubeShaderProg.uPointSizeLoc, 1.0);
+            cubeShaderProg.vColor = gl.getAttribLocation(cubeShaderProg, "vColorAttr");
+
+
+            /*
+             * Setup Phong Shading and Reflection members
+             */
+            cubeShaderProg.normalMatrixLoc = gl.getUniformLocation(cubeShaderProg, "normalMatrix");
+            cubeShaderProg.vNormal = gl.getAttribLocation(cubeShaderProg, "vNormalAttr");
+            cubeShaderProg.lightPosition = gl.getUniformLocation(cubeShaderProg, "lightPosition");
+            cubeShaderProg.materialDiffuse = gl.getUniformLocation(cubeShaderProg, "materialDiffuse");
+            cubeShaderProg.lightDiffuse = gl.getUniformLocation(cubeShaderProg, "lightDiffuse");
+            cubeShaderProg.materialAmbient = gl.getUniformLocation(cubeShaderProg, "materialAmbient");
+            cubeShaderProg.lightAmbient = gl.getUniformLocation(cubeShaderProg, "lightAmbient");
+            cubeShaderProg.materialSpecular = gl.getUniformLocation(cubeShaderProg, "materialSpecular");
+            cubeShaderProg.lightSpecular = gl.getUniformLocation(cubeShaderProg, "lightSpecular");
+            cubeShaderProg.shininess = gl.getUniformLocation(cubeShaderProg, "shininess");
+
+            gl.useProgram(null);
+        }
+
+        /* 
+         * Sets up one face at a time for a rectangular prism
+         */
+        function setupVertices() {
+            //var index = 0;
+            for(index = 0; index < numSolids; index++){
+                rIdx = 8 * index;
+                quad(rIdx + 1, rIdx + 0, rIdx + 3, rIdx + 2);
+                quad(rIdx + 2, rIdx + 3, rIdx + 7, rIdx + 6);
+                quad(rIdx + 3, rIdx + 0, rIdx + 4, rIdx + 7);
+                quad(rIdx + 6, rIdx + 5, rIdx + 1, rIdx + 2);
+                quad(rIdx + 4, rIdx + 5, rIdx + 6, rIdx + 7);
+                quad(rIdx + 5, rIdx + 4, rIdx + 0, rIdx + 1);
+            }
+        }
+
+        function quad(a, b, c, d) {
+            var indices = [a, b, c, a, c, d];
+            for (var i = 0; i < indices.length; ++i) {
+                points.push(...vertices[indices[i]]);
+                colors.push(...vertexColors[a]);
+            }
+
+            //adding normals for 6 vertices
+            let aVector = vec3.create();
+            let bVector = vec3.create();
+            let normalVector = vec3.create();
+            let normalVector4 = vec4.create();
+
+            vec3.subtract(aVector, vertices[b], vertices[a]);
+            vec3.subtract(bVector, vertices[c], vertices[b]);
+            vec3.cross(normalVector, aVector, bVector);
+            vec3.normalize(normalVector, normalVector);
+            vec4.set(normalVector4, normalVector[0], normalVector[1], normalVector[2], 0.0);
+
+            normalsArray.push(...normalVector4);
+            normalsArray.push(...normalVector4);
+            normalsArray.push(...normalVector4);
+            normalsArray.push(...normalVector4);
+            normalsArray.push(...normalVector4);
+            normalsArray.push(...normalVector4);
+
+        }
+
+
+        function drawCarpet(){
+            vertices[verIdx++] = vec3.clone([-carpetLongSide/2.0, -carpetHeight/2.0 + carpetY,  carpetSmallSide/2.0 + carpetZ]);
+            vertices[verIdx++] = vec3.clone([-carpetLongSide/2.0,  carpetHeight/2.0 + carpetY,  carpetSmallSide/2.0 + carpetZ]);
+            vertices[verIdx++] = vec3.clone([ carpetLongSide/2.0,  carpetHeight/2.0 + carpetY,  carpetSmallSide/2.0 + carpetZ]);
+            vertices[verIdx++] = vec3.clone([ carpetLongSide/2.0, -carpetHeight/2.0 + carpetY,  carpetSmallSide/2.0 + carpetZ]);
+            vertices[verIdx++] = vec3.clone([-carpetLongSide/2.0, -carpetHeight/2.0 + carpetY, -carpetSmallSide/2.0 + carpetZ]);
+            vertices[verIdx++] = vec3.clone([-carpetLongSide/2.0,  carpetHeight/2.0 + carpetY, -carpetSmallSide/2.0 + carpetZ]);
+            vertices[verIdx++] = vec3.clone([ carpetLongSide/2.0,  carpetHeight/2.0 + carpetY, -carpetSmallSide/2.0 + carpetZ]);
+            vertices[verIdx++] = vec3.clone([ carpetLongSide/2.0, -carpetHeight/2.0 + carpetY, -carpetSmallSide/2.0 + carpetZ]);
+            /* Brown */
+            for(colIdx = 0; colIdx < 8; colIdx++){
+                vertexColors[verCol++] = vec3.clone([1.0, 0.0, 0.0]);
+            }
+        }
+
+        function drawLegs(){
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX, -legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX,  legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX,  legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX, -legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX, -legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX,  legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX,  legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX, -legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY,  legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY, -legSide/2.0 + legZ]);
+
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX, -legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX,  legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX,  legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX, -legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX, -legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX,  legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX,  legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX, -legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY,  legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([-legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide,  legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+            vertices[verIdx++] = vec3.clone([ legSide/2.0 + legX - tableSide, -legHeight/2.0 + legY, -legSide/2.0 + legZ - tableSide]);
+            
+            for(colIdx = 0; colIdx < 8*4; colIdx++){
+                vertexColors[verCol++] = vec3.clone([184.0/255.0, 135.0/255.0, 10.0/255.0]);
+            }
+        }
+
+        function drawTableTop(){
+            vertices[verIdx++] = vec3.clone([-tableSide/2.0, -tableHeight/2.0 + tableY,  tableSide/2.0 + tableZ]);
+            vertices[verIdx++] = vec3.clone([-tableSide/2.0,  tableHeight/2.0 + tableY,  tableSide/2.0 + tableZ]);
+            vertices[verIdx++] = vec3.clone([ tableSide/2.0,  tableHeight/2.0 + tableY,  tableSide/2.0 + tableZ]);
+            vertices[verIdx++] = vec3.clone([ tableSide/2.0, -tableHeight/2.0 + tableY,  tableSide/2.0 + tableZ]);
+            vertices[verIdx++] = vec3.clone([-tableSide/2.0, -tableHeight/2.0 + tableY, -tableSide/2.0 + tableZ]);
+            vertices[verIdx++] = vec3.clone([-tableSide/2.0,  tableHeight/2.0 + tableY, -tableSide/2.0 + tableZ]);
+            vertices[verIdx++] = vec3.clone([ tableSide/2.0,  tableHeight/2.0 + tableY, -tableSide/2.0 + tableZ]);
+            vertices[verIdx++] = vec3.clone([ tableSide/2.0, -tableHeight/2.0 + tableY, -tableSide/2.0 + tableZ]);
+            for(colIdx = 0; colIdx < 8; colIdx++){
+                vertexColors[verCol++] = vec3.clone([184.0/255.0, 135.0/255.0, 10.0/255.0]);
+            }
+        }
+
+        function drawCube(){
+            vertices[verIdx++] = vec3.clone([-cubeSide/2.0 + cubeX, -cubeSide/2.0 + cubeY,  cubeSide/2.0 + cubeZ]);
+            vertices[verIdx++] = vec3.clone([-cubeSide/2.0 + cubeX,  cubeSide/2.0 + cubeY,  cubeSide/2.0 + cubeZ]);
+            vertices[verIdx++] = vec3.clone([ cubeSide/2.0 + cubeX,  cubeSide/2.0 + cubeY,  cubeSide/2.0 + cubeZ]);
+            vertices[verIdx++] = vec3.clone([ cubeSide/2.0 + cubeX, -cubeSide/2.0 + cubeY,  cubeSide/2.0 + cubeZ]);
+            vertices[verIdx++] = vec3.clone([-cubeSide/2.0 + cubeX, -cubeSide/2.0 + cubeY, -cubeSide/2.0 + cubeZ]);
+            vertices[verIdx++] = vec3.clone([-cubeSide/2.0 + cubeX,  cubeSide/2.0 + cubeY, -cubeSide/2.0 + cubeZ]);
+            vertices[verIdx++] = vec3.clone([ cubeSide/2.0 + cubeX,  cubeSide/2.0 + cubeY, -cubeSide/2.0 + cubeZ]);
+            vertices[verIdx++] = vec3.clone([ cubeSide/2.0 + cubeX, -cubeSide/2.0 + cubeY, -cubeSide/2.0 + cubeZ]);
+            for(colIdx = 0; colIdx < 8; colIdx++){
+                vertexColors[verCol++] = vec3.clone([0, 0, 1]);
+            }
+
+        }
+
+        function setupBuffers() {
+
+            /*
+             * draws all the points for all the "cubes" in the image 
+             */
+            drawCarpet();
+            drawLegs();
+            drawTableTop();
+            drawCube();
+
+            /*
+             * Setups surfaces - and their normals - by combining the veritices defined earlier 
+             */
+            setupVertices();
+            
+            gl.useProgram(shaderProg);
+
+            /*
+             * Creates buffer for ordered vertices
+             */
+            vertexBuffer = gl.createBuffer();
+            vertexBuffer.itemSize = 3;
+            vertexBuffer.numberOfItems = points.length / 3;
+            vertexArray = gl.createVertexArray();
+            gl.bindVertexArray(vertexArray);
+            gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(shaderProg.aPositionLoc);
+            gl.vertexAttribPointer(shaderProg.aPositionLoc, 3, gl.FLOAT, false, 0, 0);
+
+            /*
+             * Creates buffer for ordered colors
+             */
+            colorBuffer = gl.createBuffer();
+            colorBuffer.itemSize = 3;
+            colorBuffer.numberOfItems = colors.length / 3;
+            gl.bindBuffer( gl.ARRAY_BUFFER, colorBuffer );
+            gl.bufferData( gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW );
+            gl.enableVertexAttribArray( shaderProg.vColor );
+            gl.vertexAttribPointer( shaderProg.vColor, 3, gl.FLOAT, false, 0, 0 );
+
+            /*
+             * Creates buffer for ordered normals
+             */
+            console.log(shaderProg.vNormal);
+            normalBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalsArray), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(shaderProg.vNormal);
+            gl.vertexAttribPointer(shaderProg.vNormal, 4, gl.FLOAT, false, 0, 0);
+
+            gl.bindVertexArray(null);
+        }
+
+        function draw() {
+            gl.fClear();
+            gl.useProgram(shaderProg);
+            gl.bindVertexArray(vertexArray);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            //setupLights();
+
+            let projectionMatrix = mat4.create();
+            let finalFovy = glMatrix.toRadian(fovy);  // vertical Field-of-view (in Y direction) angle (in radians)
+            let finalAspect = aspect;
+            mat4.perspective(projectionMatrix, finalFovy, finalAspect, near, far);
+
+            let modelViewMatrix = mat4.create();
+            let eye = vec3.clone([eyeX, eyeY, eyeZ]);
+            const at = vec3.clone([0.0, 0.0, 0.0]);
+            const up = vec3.clone([0.0, 1.0, 0.0]);
+            mat4.lookAt(modelViewMatrix, eye, at, up);
+
+            for(var rotationAnimAxis = 0 ; rotationAnimAxis < 3; rotationAnimAxis++){
+                if(rotateAnim[rotationAnimAxis]) {thetaAnim[rotationAnimAxis]+=0.1;}
+            }
+
+            normalMatrix = mat4.create();
+            mat4.invert(normalMatrix, modelViewMatrix);
+
+            gl.uniformMatrix4fv(shaderProg.normalMatrixLoc, true, normalMatrix);
+
+            gl.uniform3fv(shaderProg.thetaAnim, thetaAnim);
+            gl.uniformMatrix4fv(shaderProg.projectionMatrixLoc, false, projectionMatrix);
+            gl.uniformMatrix4fv(shaderProg.modelViewMatrixLoc, false, modelViewMatrix);
+            gl.uniform4fv(shaderProg.lightDiffuse, lightDiffuse);
+            gl.uniform4fv(shaderProg.materialDiffuse, materialDiffuse);
+            gl.uniform4fv(shaderProg.lightAmbient, lightAmbient);
+            gl.uniform4fv(shaderProg.materialAmbient, materialAmbient);
+            gl.uniform4fv(shaderProg.lightSpecular, lightSpecular);
+            gl.uniform4fv(shaderProg.materialSpecular, materialSpecular);
+            gl.uniform4fv(shaderProg.lightPosition, lightPosition);
+            gl.uniform1f(shaderProg.shininess, materialShininess);
+
+            for(idxSolid = 0; idxSolid < numSolids; idxSolid++){
+                ridxS = 36*idxSolid;
+                gl.drawArrays(gl.TRIANGLES, ridxS, 36);
+            }
+
+            let shadowMatrix = mat4.create();
+            shadowMatrix[15] = 0.0;
+            shadowMatrix[7] = -1 / lightPosition[1];
+
+            gl.bindVertexArray(null);
+            gl.useProgram(null);
+
+            window.requestAnimationFrame(draw);
+        }
+    </script>
+</head>
+<body>
+    <div class="main_div">
+        <div>
+            <div style="display:block; width: 100%; margin:auto; margin-top:10px; margin-bottom:10px; text-align: center">
+                <span style = "font-size: 18px; color:white;">Projection Variables and Rotation Controls</span>            
+            </div>
+            <div style="display:block; width: 100%; margin:auto; text-align: center">
+                <span style = "font-size: 14px; color:white;">Eye X: </span> <input type="text" id="eyeX" style = "margin-right:30px;width:50px; height:20px;" maxlength="4" value="-2.0"/>
+                <span style = "font-size: 14px; color:white;">Eye Y: </span> <input type="text" id="eyeY" style = "margin-right:30px;width:50px;height:20px;" maxlength="4" value="0.0"/>
+                <span style = "font-size: 14px; color:white;">Eye Z: </span> <input type="text" id="eyeZ" style = "margin-right:30px;width:50px;height:20px;" maxlength="4" value="-1.7"/>
+                <span style = "font-size: 14px; color:white;">Near: </span> <input type="text" id="near" style = "margin-right:30px;width:50px;height:20px;" maxlength="4" value="0.3"/>
+                <span style = "font-size: 14px; color:white;">Far: </span> <input type="text" id="far" style = "margin-right:30px;width:50px;height:20px;" maxlength="4" value="3.0"/>
+            </div>
+            <div style="display:block; width: 100%; margin:auto; margin-top:10px; margin-bottom:10px; text-align: center">
+                <span id="spnFovy" class ="wordings">fovy 25</span>
+                <input type="range" min="0" max="360" value="25" class="slider" id="fovy_range">
+                <span id="spnAspect" class ="wordings">aspect 1</span>
+                <input type="range" min="1" max="10" step="0.1" value="1" class="slider" id="aspect_range">
+            </div>
+            <div style="display:block; width: 100%; margin:auto;  margin-bottom:30px; text-align: center">
+                <button id="rotateX" type="button" class="btn btn-primary">Rotate X</button> 
+                <button id="rotateY" type="button" class="btn btn-primary">Rotate Y</button> 
+                <button id="rotateZ" type="button" class="btn btn-primary">Rotate Z</button>
+                <button id="stop_rotating" type="button" class="btn btn-secondary">Toggle Rotation</button>
+            </div>
+            <div style="display:block; width: 100%; margin:auto;  margin-bottom:10px; text-align: center">
+                <span style = "font-size: 18px; color:white;">Phong Shading and Phong Reflection</span>            
+            </div>
+            <div style="display:block; width: 100%; margin-bottom:30px; text-align: center">
+                <div style="float:left; align-content: center; width:5%">&nbsp;</div>
+                <div style="float:left; align-content: center; width:20%">
+                    <div style="margin-bottom: 10px;"><span style = "font-size: 18px; color:white;">Diffuse</span></div>
+                    <div>
+                        <span id="spnLightDiffuse" class ="wordings">Light 1.0</span> <input type="range" step="0.01" min="0.1" max="1" value="1" class="slider" id="light_diffuse">
+                        <br /><br/>
+                        <span style = "font-size: 14px; color:white;">Material </span>
+                        <center>
+                            <div id="material_diffuse_cp" style=" width:150px;" class="input-group colorpicker-component">
+                                <input type="text" style="height:20px;" value="#00AABB" class="form-control" />
+                                <span class="input-group-addon"><i></i></span>
+                            </div>
+                        </center>
+                    </div>
+                </div>
+                <div style="float:left; align-content: center;width:20%">
+                    <div style="margin-bottom: 10px;"><span style = "font-size: 18px; color:white;">Ambient</span></div>
+                    <div>
+                        <span id="spnLightAmbient" class ="wordings">Light 0.2 </span> <input type="range" step="0.01" min="0.1" max="1" value="0.2" class="slider" id="light_ambient">
+                        <br /><br/>
+                        <span style = "font-size: 14px; color:white;">Material </span>
+                        <center>
+                            <div id="material_ambient_cp" style=" width:150px;" class="input-group colorpicker-component">
+                                <input type="text" style="height:20px;" value="#00AABB" class="form-control" />
+                                <span class="input-group-addon"><i></i></span>
+                            </div>
+                        </center>
+                    </div>
+                </div>
+                <div style="float:left; align-content: center;width:20%">
+                    <div style="margin-bottom: 10px;"><span style = "font-size: 18px; color:white;">Specular</span></div>
+                    <div>
+                        <span id="spnLightSpecular" class ="wordings">Light 1.0</span> <input type="range" step="0.01" min="0.1" max="1" value="1" class="slider" id="light_specular">
+                        <br /><br/>
+                        <span style = "font-size: 14px; color:white;">Material </span>
+                        <center>
+                            <div id="material_specular_cp" style=" width:150px;" class="input-group colorpicker-component">
+                                <input type="text" style="height:20px;" value="#00AABB" class="form-control" />
+                                <span class="input-group-addon"><i></i></span>
+                            </div>
+                        </center>
+                    </div>
+                </div>
+                <div style="float:left; align-content: center;width:30%">
+                    <div style="margin-bottom:10px"><span style = "font-size: 18px; color:white;">Others</span></div>
+                    <div>
+                        <div style="float:left; width:50%">
+                            <div style="margin-bottom:5px" >
+                                <div style="margin-bottom:5px">
+                                    <span style = "font-size: 14px; color:white;">Light Direction</span> 
+                                </div>
+                                <div>
+                                    <span id="spnLightDirectionX" class ="wordings">X -0.39</span>
+                                    <input type="range" min="-1" max="1" step="0.01" value="-0.39" class="slider" id="light_direction_x">
+                                </div>
+                                <div>
+                                    <span id="spnLightDirectionY" class ="wordings">Y -0.81</span>
+                                    <input type="range" min="-1" max="1" step="0.01" value="-0.81" class="slider" id="light_direction_y">
+                                </div>
+                                <div>
+                                    <span id="spnLightDirectionZ" class ="wordings">Z -0.89</span>
+                                    <input type="range" min="-1" max="1" step="0.01" value="-0.89" class="slider" id="light_direction_z">
+                                </div>
+                            </div>
+                        </div>
+                        <div style="float:left; width:50%">
+                                <div style="margin-top:5px">
+                                <span style = "font-size: 14px; color:white;">Shininess: </span> <input type="text" id="shininess" style = "margin-right:30px;width:50px; height:20px;" maxlength="5" value="20.0"/>
+                                <br /><br />
+                                <span style = "font-size: 14px; color:white;">Background Color </span>
+                                <center>
+                                    <div id="background_color_cp" style=" width:150px;" class="input-group colorpicker-component">
+                                        <input type="text" style="height:20px;" value="#00AABB" class="form-control" />
+                                        <span class="input-group-addon"><i></i></span>
+                                    </div>
+                                </center>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="float:left; align-content: center; width:5%">&nbsp;</div>
+            </div>
+        </div>
+        <div style="display:block; width: 100%;margin-top:190px; margin-left:auto; margin-right:auto; text-align: center;">
+            <canvas id="myGLCanvas"></canvas>
+        </div>
+    </div>
+    <script>
+        document.getElementById("light_specular").addEventListener("change", 
+        function(){
+            lightSpecular[0] = lightSpecular[1] = lightSpecular[2] = parseFloat(document.getElementById("light_specular").value);
+            document.getElementById("spnLightSpecular").innerHTML = "Light " + lightSpecular[0];
+        });
+        document.getElementById("light_diffuse").addEventListener("change", 
+        function(){
+            lightDiffuse[0] = lightDiffuse[1] = lightDiffuse[2] = parseFloat(document.getElementById("light_diffuse").value);
+            document.getElementById("spnLightDiffuse").innerHTML = "Light " + lightDiffuse[0];
+            console.log(lightDiffuse);
+        });
+        document.getElementById("light_ambient").addEventListener("change", 
+        function(){
+            lightAmbient[0] = lightAmbient[1] = lightAmbient[2] = parseFloat(document.getElementById("light_ambient").value);
+            document.getElementById("spnLightAmbient").innerHTML = "Light " + lightAmbient[0];
+        });
+        document.getElementById("shininess").addEventListener("change", 
+        function(){
+            materialShininess = parseFloat(document.getElementById("shininess").value);
+        });
+        document.getElementById("light_direction_x").addEventListener("change", 
+        function(){
+            lightPosition[0] = parseFloat(document.getElementById("light_direction_x").value);
+            document.getElementById("spnLightDirectionX").innerHTML = "X " + lightPosition[0];
+        });
+        document.getElementById("light_direction_y").addEventListener("change", 
+        function(){
+            lightPosition[1] = parseFloat(document.getElementById("light_direction_y").value);
+            document.getElementById("spnLightDirectionY").innerHTML = "Y " + lightPosition[1];
+        });
+        document.getElementById("light_direction_z").addEventListener("change", 
+        function(){
+            lightPosition[2] = parseFloat(document.getElementById("light_direction_z").value);
+            document.getElementById("spnLightDirectionZ").innerHTML = "Z " + lightPosition[1];
+        });
+        document.getElementById("near").addEventListener("change", 
+        function(){
+            near = parseFloat(document.getElementById("near").value);
+        });
+        document.getElementById("far").addEventListener("change", 
+        function(){
+            far = parseFloat(document.getElementById("far").value);
+        });
+        document.getElementById("eyeX").addEventListener("change", 
+        function(){
+            eyeX = document.getElementById("eyeX").value;
+        });
+        document.getElementById("eyeY").addEventListener("change", 
+        function(){
+            eyeY = document.getElementById("eyeY").value;
+        });
+        document.getElementById("eyeZ").addEventListener("change", 
+        function(){
+            eyeZ = document.getElementById("eyeZ").value;
+        });
+        document.getElementById("fovy_range").addEventListener("change", 
+        function(){
+            fovy = document.getElementById("fovy_range").value;
+            document.getElementById("spnFovy").innerHTML = "fovy " + fovy;
+        });
+        document.getElementById("aspect_range").addEventListener("change", 
+        function(){
+            aspect = document.getElementById("aspect_range").value;
+            document.getElementById("spnAspect").innerHTML= "aspect " + aspect;
+        });
+        document.getElementById("rotateX").addEventListener("click", 
+        function(){
+            document.getElementById("rotateX").classList.remove('btn-primary');
+            document.getElementById("rotateY").classList.remove('btn-info');
+            document.getElementById("rotateZ").classList.remove('btn-info');
+            document.getElementById("rotateX").classList.add('btn-info');
+            document.getElementById("rotateY").classList.add('btn-primary');
+            document.getElementById("rotateZ").classList.add('btn-primary');
+            document.getElementById("stop_rotating").classList.add('btn-success');
+            document.getElementById("stop_rotating").classList.remove('btn-secondary');
+            rotateAnim = [true,false,false];
+        });
+        document.getElementById("rotateY").addEventListener("click", 
+        function(){
+            document.getElementById("rotateX").classList.remove('btn-info');
+            document.getElementById("rotateY").classList.remove('btn-primary');
+            document.getElementById("rotateZ").classList.remove('btn-info');
+            document.getElementById("rotateX").classList.add('btn-primary');
+            document.getElementById("rotateY").classList.add('btn-info');
+            document.getElementById("rotateZ").classList.add('btn-primary');
+            document.getElementById("stop_rotating").classList.add('btn-success');
+            document.getElementById("stop_rotating").classList.remove('btn-secondary');
+            rotateAnim = [false,true,false];
+        });
+        document.getElementById("rotateZ").addEventListener("click", 
+        function(){
+            document.getElementById("rotateX").classList.remove('btn-info');
+            document.getElementById("rotateY").classList.remove('btn-info');
+            document.getElementById("rotateZ").classList.remove('btn-primary');
+            document.getElementById("rotateX").classList.add('btn-primary');
+            document.getElementById("rotateY").classList.add('btn-primary');
+            document.getElementById("rotateZ").classList.add('btn-info');
+            document.getElementById("stop_rotating").classList.add('btn-success');
+            document.getElementById("stop_rotating").classList.remove('btn-secondary');
+            rotateAnim = [false,false,true];
+        });
+        document.getElementById("stop_rotating").addEventListener("click", 
+        function(){
+            document.getElementById("rotateX").classList.remove('btn-info');
+            document.getElementById("rotateY").classList.remove('btn-info');
+            document.getElementById("rotateZ").classList.remove('btn-info');
+            document.getElementById("rotateX").classList.add('btn-primary');
+            document.getElementById("rotateY").classList.add('btn-primary');
+            document.getElementById("rotateZ").classList.add('btn-primary');
+            document.getElementById("stop_rotating").classList.add('btn-secondary');
+            document.getElementById("stop_rotating").classList.remove('btn-success');
+            rotateAnim = [false,false,false];
+        });
+        
+    </script>
+    <script id="vertex_shader" type="x-shader/x-vertex">#version 300 es
+        in vec3 vPositionAttr;
+        in vec3 vColorAttr;
+        out vec4 vColor;
+        uniform float uPointSize;
+        uniform vec3 thetaAnim;
+        uniform mat4 modelViewMatrix;
+        uniform mat4 projectionMatrix;
+
+        in vec4 vNormalAttr;
+        uniform vec4 lightPosition;
+        uniform mat4 normalMatrix;
+
+        out vec3 L;
+        out vec3 N;
+        out vec3 E;
+
+        void main(void){
+
+
+            // pos is vertex position in eye coordinates
+            vec3 pos = (modelViewMatrix * vec4(vPositionAttr, 1.0)).xyz;
+    
+            //Transformed normal position
+            N = vec3(normalMatrix * vNormalAttr);
+    
+            vec3 eyeVec = -vec3(pos);
+            E = eyeVec;
+    
+            // check for directional light
+    
+            if(lightPosition.w == 0.0) L = lightPosition.xyz;
+            else L =  lightPosition.xyz - pos ;
+    
+            vec3 theta = vec3(0,0,0);
+            vec3 angles = radians( theta );
+            vec3 c = cos( angles );
+            vec3 s = sin( angles );
+
+            vec3 globalAngles = radians(thetaAnim);
+            vec3 cG = cos( globalAngles );
+            vec3 sG = sin( globalAngles );
+
+            mat4 rotGlobX = mat4(
+                1.0,  0.0, 0.0, 0.0,
+                0.0,  cG.x, sG.x, 0.0,
+                0.0, -sG.x, cG.x, 0.0,
+                0.0,  0.0, 0.0, 1.0 );
+
+            mat4 rotGlobY = mat4( 
+                cG.y, 0.0, -sG.y, 0.0,
+                0.0, 1.0,  0.0, 0.0,
+                sG.y, 0.0, cG.y, 0.0,
+                0.0, 0.0,  0.0, 1.0 );
+
+            mat4 rotGlobZ = mat4( 
+                 cG.z, sG.z, 0.0, 0.0,
+                -sG.z, cG.z, 0.0, 0.0,
+                 0.0, 0.0, 1.0, 0.0,
+                 0.0, 0.0, 0.0, 1.0 );
+
+            mat4 rx = mat4( 
+                1.0,  0.0, 0.0, 0.0,
+                0.0,  c.x, s.x, 0.0,
+                0.0, -s.x, c.x, 0.0,
+                0.0,  0.0, 0.0, 1.0 );
+
+            mat4 ry = mat4( 
+                c.y, 0.0, -s.y, 0.0,
+                0.0, 1.0,  0.0, 0.0,
+                s.y, 0.0,  c.y, 0.0,
+                0.0, 0.0,  0.0, 1.0 );
+
+            mat4 rz = mat4( 
+                 c.z, s.z, 0.0, 0.0,
+                -s.z, c.z, 0.0, 0.0,
+                 0.0, 0.0, 1.0, 0.0,
+                 0.0, 0.0, 0.0, 1.0 );
+
+            gl_PointSize = uPointSize;
+
+            mat4 translationBefore = mat4(
+                1.0,0.0,0.0,0.0,
+                0.0,1.0,0.0,0.0,
+                0.0,0.0,1.0,0.0,
+                0.0,-0.30 ,0.30,1.0
+            );
+            mat4 translationAfter = mat4(
+                1.0,0.0,0.0,0.0,
+                0.0,1.0,0.0,0.0,
+                0.0,0.0,1.0,0.0,
+                0.20,0.05,-0.30,1.0
+            );
+        
+            gl_Position = projectionMatrix * modelViewMatrix * rotGlobX * rotGlobY * rotGlobZ * translationAfter* rx * ry * translationBefore * vec4(vPositionAttr, 1.0);
+            vColor = vec4(vColorAttr, 1.0);
+        }
+    </script>
+
+
+    <script id="cube_vertex_shader" type="x-shader/x-vertex">#version 300 es
+        in vec3 vPositionAttr;
+        in vec3 vColorAttr;
+        out vec4 vColor;
+        uniform float uPointSize;
+        uniform float uAngle;
+        uniform vec3 thetaAnim;
+        uniform mat4 modelViewMatrix;
+        uniform mat4 projectionMatrix;
+        
+        in vec4 vNormalAttr;
+        uniform vec4 lightPosition;
+        uniform mat4 normalMatrix;
+
+        out vec3 L;
+        out vec3 N;
+        out vec3 E;
+
+        void main(void){
+
+            // pos is vertex position in eye coordinates
+            vec3 pos = (modelViewMatrix * vec4(vPositionAttr, 1.0)).xyz;
+    
+            //Transformed normal position
+            N = vec3(normalMatrix * vNormalAttr);
+    
+            vec3 eyeVec = -vec3(pos);
+            E = eyeVec;
+    
+            // check for directional light
+    
+            if(lightPosition.w == 0.0) L = lightPosition.xyz;
+            else L =  lightPosition.xyz - pos ;
+
+            vec3 theta = vec3(0,0,0);
+            vec3 angles = radians( theta );
+            vec3 c = cos( angles );
+            vec3 s = sin( angles );
+
+            vec3 globalAngles = radians(thetaAnim);
+            vec3 cG = cos( globalAngles );
+            vec3 sG = sin( globalAngles );
+            mat4 rotGlobX = mat4(
+                1.0,  0.0, 0.0, 0.0,
+                0.0,  cG.x, sG.x, 0.0,
+                0.0, -sG.x, cG.x, 0.0,
+                0.0,  0.0, 0.0, 1.0 );
+            mat4 rotGlobY = mat4( 
+                cG.y, 0.0, -sG.y, 0.0,
+                0.0, 1.0,  0.0, 0.0,
+                sG.y, 0.0, cG.y, 0.0,
+                0.0, 0.0,  0.0, 1.0 );
+
+            mat4 rotGlobZ = mat4( 
+                 cG.z, sG.z, 0.0, 0.0,
+                -sG.z, cG.z, 0.0, 0.0,
+                 0.0, 0.0, 1.0, 0.0,
+                 0.0, 0.0, 0.0, 1.0 );
+
+            // Remeber: thse matrices are column-major
+            mat4 rx = mat4( 
+                1.0,  0.0, 0.0, 0.0,
+                0.0,  c.x, s.x, 0.0,
+                0.0, -s.x, c.x, 0.0,
+                0.0,  0.0, 0.0, 1.0 );
+
+            mat4 ry = mat4( 
+                c.y, 0.0, -s.y, 0.0,
+                0.0, 1.0,  0.0, 0.0,
+                s.y, 0.0,  c.y, 0.0,
+                0.0, 0.0,  0.0, 1.0 );
+
+            mat4 rz = mat4( 
+                 c.z, s.z, 0.0, 0.0,
+                -s.z, c.z, 0.0, 0.0,
+                 0.0, 0.0, 1.0, 0.0,
+                 0.0, 0.0, 0.0, 1.0 );
+
+            gl_PointSize = uPointSize;
+
+            mat4 translationBefore = mat4(
+                1.0,0.0,0.0,0.0,
+                0.0,1.0,0.0,0.0,
+                0.0,0.0,1.0,0.0,
+                0.0,-0.30 ,0.30,1.0
+            );
+            mat4 translationAfter = mat4(
+                1.0,0.0,0.0,0.0,
+                0.0,1.0,0.0,0.0,
+                0.0,0.0,1.0,0.0,
+                0.20,0.05,-0.30,1.0
+            );
+
+            gl_Position = projectionMatrix * modelViewMatrix * rotGlobX * rotGlobY * rotGlobZ * translationAfter* rx * ry * translationBefore *  vec4(
+                (cos(uAngle)) * 0.1+ vPositionAttr.x,
+                vPositionAttr.y,
+                (sin(uAngle)) * 0.1+ vPositionAttr.z,
+                1.0);
+            vColor = vec4(vColorAttr, 1.0);
+        }
+    </script>
+
+    <script id="fragment_shader" type="x-shader/x-fragment">#version 300 es
+        precision mediump float;
+        in vec4 vColor;
+        out vec4 finalColor;
+
+        uniform vec4 lightDiffuse;
+        uniform vec4 materialDiffuse;
+        uniform vec4 lightAmbient;
+        uniform vec4 materialAmbient;
+        uniform vec4 lightSpecular;
+        uniform vec4 materialSpecular;
+        uniform float shininess;
+
+        in vec3 L;
+        in vec3 N;
+        in vec3 E;
+        vec3 nL, nN, nE;
+
+        void main(void) {
+
+            nE = normalize(E);
+            nN = normalize(N);
+            nL = normalize(L);
+    
+            //Lambert's cosine law
+            float lambertTerm = dot(nN,-nL);
+    
+            float Kd = max (dot (nN, -nL) , 0.0);
+            //Ambient Term
+            vec4 Ia = lightAmbient * materialAmbient;
+    
+            //Diffuse Term
+            vec4 Id = vec4(0.0,0.0,0.0,1.0);
+    
+            //Specular Term
+            vec4 Is = vec4(0.0,0.0,0.0,1.0);
+    
+            if(lambertTerm > 0.0) //only if lambertTerm is positive
+            {
+            //  materialDiffuse = vColor; //actual table's color
+            Id = lightDiffuse* vColor * lambertTerm; //add diffuse term
+    
+            vec3 R = reflect(nL, nN);
+            float specular = pow(max(dot(R, nE), 0.0), shininess );
+    
+            Is = lightSpecular * materialSpecular * specular; //add specular term
+            }
+    
+            finalColor = Ia + Id + Is;
+            finalColor.a = 1.0;
+        }
+    </script>
+</body>
+</html>
