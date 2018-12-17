@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Final Assignment - Textures</title>
+    <title>Checkers Assignment - Textures</title>
     <!-- Webpage libraries -->
     <link rel="stylesheet" href="Common/css/bootstrap.css" />
     <link rel="stylesheet" href="Common/css/bootstrap-colorpicker.css" />
@@ -185,9 +185,6 @@
              */
             setupLights();
             /*
-             */
-             setupTexture();
-                         /*
              * Setup all the buffers - vertices and colours 
              * combined
              */
@@ -390,46 +387,39 @@
 
         }
 
-        function changeTexture(name){
+        function setupTexture(name) {
             if(name == "box"){
+                var image = document.getElementById("boxTexture");
+                texture = gl.createTexture();
                 gl.bindTexture( gl.TEXTURE_2D, texture );
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+                gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGB,
+                    gl.RGB, gl.UNSIGNED_BYTE, image );
+                gl.generateMipmap( gl.TEXTURE_2D );
                 gl.uniform1i(shaderProg.bTexture, 0);
             }
+
             if(name == "table"){
+                var imageTable = document.getElementById("tableTexture");
+                tableTexture = gl.createTexture();
                 gl.bindTexture( gl.TEXTURE_2D, tableTexture );
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+                gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGB,
+                    gl.RGB, gl.UNSIGNED_BYTE, imageTable );
+                gl.generateMipmap( gl.TEXTURE_2D );
                 gl.uniform1i(shaderProg.tTexture, 0);
             }
             if(name == "floor"){
-                gl.bindTexture( gl.TEXTURE_2D, floorTexture );
-                gl.uniform1i(shaderProg.fTexture, 0);
-            }
-
-        }
-
-        function setupTexture() {
-            var image = document.getElementById("boxTexture");
-            texture = gl.createTexture();
-            gl.bindTexture( gl.TEXTURE_2D, texture );
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-            gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGB,
-                gl.RGB, gl.UNSIGNED_BYTE, image );
-            gl.generateMipmap( gl.TEXTURE_2D );
-
-            var imageTable = document.getElementById("tableTexture");
-            tableTexture = gl.createTexture();
-            gl.bindTexture( gl.TEXTURE_2D, tableTexture );
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-            gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGB,
-                gl.RGB, gl.UNSIGNED_BYTE, imageTable );
-            gl.generateMipmap( gl.TEXTURE_2D );
-
-            var imageFloor = document.getElementById("floorTexture");
+                var imageFloor = document.getElementById("floorTexture");
             floorTexture = gl.createTexture();
-            gl.bindTexture( gl.TEXTURE_2D, floorTexture );
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-            gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGB,
-                gl.RGB, gl.UNSIGNED_BYTE, imageFloor );
-            gl.generateMipmap( gl.TEXTURE_2D );
+                gl.bindTexture( gl.TEXTURE_2D, floorTexture );
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+                gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGB,
+                    gl.RGB, gl.UNSIGNED_BYTE, imageFloor );
+                gl.generateMipmap( gl.TEXTURE_2D );
+                gl.uniform1i(shaderProg.fTexture, 0);
+
+            }
         }
 
         function setupBuffers() {
@@ -541,15 +531,15 @@
             gl.uniform4fv(shaderProg.lightPosition, lightPosition);
             gl.uniform1f(shaderProg.shininess, materialShininess);
 
-            changeTexture("floor");
+            setupTexture("floor");
             gl.drawArrays(gl.TRIANGLES, 0, 36);
 
-            changeTexture("table");
+            setupTexture("table");
             for(idxSolid = 1; idxSolid < numSolids-1; idxSolid++){
                 ridxS = 36*idxSolid;
                 gl.drawArrays(gl.TRIANGLES, ridxS, 36);
             }
-            changeTexture("box");
+            setupTexture("box");
             gl.drawArrays(gl.TRIANGLES, 36*(numSolids-1), 36);
 
             let shadowMatrix = mat4.create();
